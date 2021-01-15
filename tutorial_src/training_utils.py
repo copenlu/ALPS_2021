@@ -1,10 +1,10 @@
-import torch
-from typing import Dict
-from tqdm.notebook import tqdm
-import numpy as np
-from sklearn.metrics import accuracy_score, confusion_matrix, \
-    precision_recall_fscore_support
 import random
+from typing import Dict
+
+import numpy as np
+import torch
+from sklearn.metrics import precision_recall_fscore_support
+from tqdm.notebook import tqdm
 
 
 def enforce_reproducibility(seed: int = 42):
@@ -21,14 +21,14 @@ def enforce_reproducibility(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
 
+
 def train_model(model: torch.nn.Module,
-                train_dl: torch.data.utils.DataLoader,
-                dev_dl: torch.data.utils.DataLoader,
+                train_dl: torch.utils.data.DataLoader,
+                dev_dl: torch.utils.data.DataLoader,
                 optimizer: torch.optim.Optimizer,
                 scheduler: torch.optim.lr_scheduler.LambdaLR,
                 n_epochs: int) -> (Dict, Dict):
     loss_f = torch.nn.CrossEntropyLoss()
-
     best_val, best_model_weights = {'val_f1': 0}, None
 
     for ep in range(n_epochs):
@@ -58,8 +58,7 @@ def train_model(model: torch.nn.Module,
 
 
 def eval_model(model: torch.nn.Module,
-               test_dl: torch.data.utils.DataLoader,
-               measure=None):
+               test_dl: torch.utils.data.DataLoader):
     model.eval()
 
     loss_f = torch.nn.CrossEntropyLoss()
@@ -78,14 +77,8 @@ def eval_model(model: torch.nn.Module,
 
         prediction = np.argmax(np.array(logits_all), axis=-1)
 
-        if measure == 'acc':
-            p, r = None, None
-            f1 = accuracy_score(labels_all, prediction)
-        else:
-            p, r, f1, _ = precision_recall_fscore_support(labels_all,
-                                                          prediction,
-                                                          average='macro')
-
-        print(confusion_matrix(labels_all, prediction))
+    p, r, f1, _ = precision_recall_fscore_support(labels_all,
+                                                  prediction,
+                                                  average='macro')
 
     return p, r, f1, np.mean(losses), labels_all, prediction

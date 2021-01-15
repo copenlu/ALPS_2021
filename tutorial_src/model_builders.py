@@ -1,10 +1,11 @@
-import torch
 from argparse import Namespace
+
+import torch
 from torch.nn import functional as F, init
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from transformers import AdamW, BertConfig, BertForSequenceClassification, \
     get_constant_schedule_with_warmup
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class LSTM_MODEL(torch.nn.Module):
@@ -17,14 +18,14 @@ class LSTM_MODEL(torch.nn.Module):
         self.args = args
         self.n_labels = n_labels
         self.device = device
-        # TODO embeddings name, too
-        self.embedding = torch.nn.Embedding(embeddings.size(0), embeddings.size(1))
+        self.embedding = torch.nn.Embedding(embeddings.size(0),
+                                            embeddings.size(1))
         self.embedding.weight = embeddings
-        # TODO extract other params, too: bidirectional
+
         self.enc_p = torch.nn.LSTM(input_size=args.embedding_dim,
                                    hidden_size=args.hidden_lstm,
                                    num_layers=args.num_layers,
-                                   bidirectional=True,
+                                   bidirectional=args.bidirectional,
                                    dropout=args.dropout,
                                    batch_first=True)
 
@@ -64,6 +65,8 @@ class LSTM_MODEL(torch.nn.Module):
                         ilen = _i + 1
                         break
                 seq_lenghts.append(ilen)
+        else:
+            seq_lenghts = seq_lenghts[0]
 
         packed_input = pack_padded_sequence(embedded, seq_lenghts,
                                             batch_first=True,
@@ -74,7 +77,8 @@ class LSTM_MODEL(torch.nn.Module):
         last_idxs = (input_sizes - 1).to(self.device)
         output = torch.gather(output, 1,
                               last_idxs.view(-1, 1).unsqueeze(2).repeat(1, 1,
-                                                                        self.args.hidden_lstm * 2)).squeeze()
+                                                                        self.args.hidden_lstm * 2)).squeeze(
+            1)
 
         for hidden_layer in self.hidden_layers:
             output = self.dropout(hidden_layer(output))
@@ -93,11 +97,9 @@ class CNN_MODEL(torch.nn.Module):
 
         self.embedding = torch.nn.Embedding(embeddings.size(0),
                                             embeddings.size(1))
-
-        self.dropout = torch.nn.Dropout(args.dropout)
-
         self.embedding.weight = embeddings
 
+        self.dropout = torch.nn.Dropout(args.dropout)
         self.conv_layers = torch.nn.ModuleList(
             [torch.nn.Conv2d(args.in_channels, args.out_channels,
                              (kernel_height, args.embedding_dim),
@@ -109,14 +111,29 @@ class CNN_MODEL(torch.nn.Module):
 
     def conv_block(self, input, conv_layer):
         conv_out = conv_layer(input)
-        # TODO: extract this
-        activation = F.relu(conv_out.squeeze(3))
-        # TODO: extract pooling
-        max_out = F.max_pool1d(activation, activation.size()[2]).squeeze(2)
+        if self.args.activation == 'relu':
+            activation = F.relu(conv_out.squeeze(3))
+        elif self.args.activation == 'tanh':
+            activation = F.tanh(conv_out.squeeze(3))
+        elif self.args.activation == 'sigmoid':
+            activation = F.sigmoid(conv_out.squeeze(3))
+        else:
+            raise ValueError(f'Not supported activation {self.args.activation}'
+                             f'Use one of relu, tanh, sigmoid.')
 
-        return max_out
+        if self.args.pooling == 'max':
+            pooled_out = F.max_pool1d(activation,
+                                      activation.size()[2]).squeeze(2)
+        elif self.args.pooling == 'average':
+            pooled_out = F.max_pool1d(activation,
+                                      activation.size()[2]).squeeze(2)
+        else:
+            raise ValueError(f'Not supported pooling {self.args.pooling}'
+                             f'Use one of max, average.')
 
-    def forward(self, input):
+        return pooled_out
+
+    def forward(self, input, additional_args=None):
         input = self.embedding(input)
         input = input.unsqueeze(1)
         input = self.dropout(input)
@@ -129,17 +146,31 @@ class CNN_MODEL(torch.nn.Module):
         return logits
 
 
+class BertWrapper(torch.nn.Module):
+    def __init__(self, transformer):
+        super(BertWrapper, self).__init__()
+        self.transformer = transformer
+
+    def forward(self, input, additional_args=None):
+        print(self.transformer(input, attention_mask=input != 0)['logits'].size())
+        return self.transformer(input, attention_mask=input != 0)['logits']
+
+
 def get_model(model_args, device, embeddings=None):
     if model_args.model == 'transformer':
         transformer_config = BertConfig.from_pretrained('bert-base-uncased',
                                                         num_labels=model_args.labels)
         if model_args.init_only:
-            model = BertForSequenceClassification(config=transformer_config).to(
+            transformer_model = BertForSequenceClassification(
+                config=transformer_config).to(
                 device)
+            model = BertWrapper(transformer_model)
         else:
-            model = BertForSequenceClassification.from_pretrained(
+            transformer_model = BertForSequenceClassification.from_pretrained(
                 'bert-base-uncased',
                 config=transformer_config).to(device)
+            model = BertWrapper(transformer_model)
+
         param_optimizer = list(model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [

@@ -1,49 +1,40 @@
-from torch.utils.data import Dataset
+import csv
 import os
-import torchtext
-import torch
-from typing import List, Dict
+from typing import Dict, List
+
 import nltk
-import urllib.request
-import subprocess
-from urllib.parse import urlparse
+import torch
+import torchtext
+from torch.utils.data import Dataset
+
+twitter_label = {'negative': 0, 'neutral': 1, 'positive': 2}
 
 
-def download_data(url = 'http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz'):
-  filename = os.path.basename(urlparse(url).path)
-  urllib.request.urlretrieve(url, filename=filename)
-  subprocess.call(['tar', 'xvzf', filename])
+class TwitterDataset(Dataset):
+    """https://www.kaggle.com/c/tweet-sentiment-extraction/data"""
 
-
-class IMDBDataset(Dataset):
-    def __init__(self, split='train', data_dir='aclImdb'):
-        if split == 'test':
-            filenames_neg = os.scandir(os.path.join(data_dir, 'test', 'neg'))
-            filenames_pos = os.scandir(os.path.join(data_dir, 'test', 'pos'))
-        elif split == 'val':
-            filenames_neg = os.scandir(os.path.join(data_dir, 'train', 'neg'))
-            filenames_neg = [f for f in filenames_neg if f.name.startswith('8')]
-            filenames_pos = os.scandir(os.path.join(data_dir, 'train', 'pos'))
-            filenames_pos = [f for f in filenames_pos if f.name.startswith('8')]
-        elif split == 'train':
-            filenames_neg = os.scandir(os.path.join(data_dir, 'train', 'neg'))
-            filenames_neg = [f for f in filenames_neg if
-                             not f.name.startswith('8')]
-            filenames_pos = os.scandir(os.path.join(data_dir, 'train', 'pos'))
-            filenames_pos = [f for f in filenames_pos if
-                             not f.name.startswith('8')]
-        else:
-            raise ValueError(f'Unknown split {split} value!')
-
+    def __init__(self, split='train'):
+        super().__init__()
         self.dataset = []
-        self.dataset += [(open(fn).read(), 0) for fn in filenames_neg]
-        self.dataset += [(open(fn).read(), 1) for fn in filenames_pos]
-
-    def __getitem__(self, item: int):
-        return self.dataset[item]
+        if split == 'train':
+            data_path = os.path.join('ALPS_2021/data/train.csv')
+        elif split == 'val':
+            data_path = os.path.join('ALPS_2021/data/test.csv')
+        with open(data_path) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',',
+                                    quoting=csv.QUOTE_MINIMAL)
+            self.dataset.extend([line for line in csv_reader][1:])
+        # 358bd9e861," Sons of ****, why couldn`t they put them on the
+        # releases we already bought","Sons of ****,",negative
+        for i in range(len(self.dataset)):
+            self.dataset[i] = (self.dataset[i][1],
+                               twitter_label[self.dataset[i][-1]])
 
     def __len__(self):
         return len(self.dataset)
+
+    def __getitem__(self, item):
+        return self.dataset[item]
 
 
 def get_embeddings(embeddings_name: str,
@@ -63,21 +54,22 @@ def get_embeddings(embeddings_name: str,
         word_vectors = torch.cat([word_vectors, torch.zeros(1, embedding_dim)],
                                  dim=0)
 
-    # TODO: extract this, too
     return torch.nn.Parameter(word_vectors, requires_grad=True), word_to_index
 
 
-class EmbeddingsTokenizer:
+class EmbeddingsVocabTokenizer:
     def __init__(self, word_to_id, id_to_word):
         self.word_to_id = word_to_id
         self.id_to_word = id_to_word
         self.tokenizer = nltk.tokenize.word_tokenize
         self.pad_token_id = self.word_to_id['<pad>']
+        self.mask_token_id = self.word_to_id['unk']
 
     def encode(self, text, max_length=-1, lower=True):
-        if lower:
-            text = text.lower()
         tokens = self.tokenizer(text)
+        if lower:
+            tokens = [t.lower() for t in tokens]
+
         token_ids = [self.word_to_id[token] if token in self.word_to_id else
                      self.word_to_id['unk'] for token in tokens]
         return token_ids[:max_length]
@@ -85,15 +77,17 @@ class EmbeddingsTokenizer:
     def __len__(self):
         return len(self.word_to_id)
 
+    def convert_ids_to_tokens(self, token_ids: List[int]) -> List[str]:
+        return [self.id_to_word[token] for token in token_ids]
 
-def collate_imdb(instances: List[Dict],
+
+def collate_tweet(instances: List[Dict],
                  tokenizer,
                  return_attention_masks: bool = True,
                  pad_to_max_length: bool = False,
                  max_seq_len: int = 512,
                  device='cuda',
                  return_seq_lens: bool = False) -> List[torch.Tensor]:
-
     token_ids = [tokenizer.encode(_x[0], max_length=509) for _x in instances]
     if pad_to_max_length:
         batch_max_len = max_seq_len
@@ -108,14 +102,15 @@ def collate_imdb(instances: List[Dict],
     if return_attention_masks:
         output_tensors.append(padded_ids_tensor > 0)
     output_tensors.append(labels)
+    output_tensors = list(_t.to(device) for _t in output_tensors)
 
     if return_seq_lens:
         seq_lengths = []
         for instance in output_tensors[0]:
             for _i in range(len(instance) - 1, -1, -1):
-                if instance[_i] != 0:
+                if instance[_i] != tokenizer.pad_token_id:
                     seq_lengths.append(_i + 1)
                     break
         output_tensors.append(seq_lengths)
 
-    return list(_t.to(device) for _t in output_tensors)
+    return output_tensors
