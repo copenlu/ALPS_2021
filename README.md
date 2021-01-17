@@ -1,5 +1,5 @@
-# ALPS_2021 - LAB 2 - January 22 2021
-Repository for the Explainable AI track in the ALPS winter school 2021
+# ALPS_2021 - LAB 2: XAI in NLP - January 22 2021
+Repository for the Explainable AI track in the ALPS winter school 2021 - [schedule](http://lig-alps.imag.fr/index.php/schedule/).
 
 Please, keep in mind that changes are possible to the notebooks and/or source code in the few upcoming days.
 
