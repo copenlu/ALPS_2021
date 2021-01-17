@@ -12,14 +12,14 @@ The solutions for the tasks can be found in [this notebook](https://colab.resear
 
 # Lab 2
 The second lab focuses explorative interpretability via acivation maximization - i.e. TX-Ray https://arxiv.org/abs/1912.00982. Activation maximization works for supervised and *self/un-supervised* settings alike, but the lab focuses analyzing CNN filters in a simple supervised setting.
-## Lab code
+## Lab 2 code
 [CoLAB2](https://colab.research.google.com/drive/1lg6Xj9QM33lekmSkdzjxHIBlGnexBTY3?usp=sharing) <- copy this Colab notebook and add code to it for the exercises.
 There are two types of exercises:
 
 <font color='Gold'>**Familiarization exercise:**</font> to 'play with and understand' the technique. These allow quickly changes data collection and visualization parameters. They are intended for explorative analysis.
 
 <font color='orange'>**Advanced Exercises:**</font>, these are optional and concern applications of the technique. They have no solution, but give solution outlines (starter code). Opt-EX1: XAI based pruning with hooks, Opt-EX2 influence of overparameterization (wider CNN with more filters), Opt-Ex3: filter redundancy. Opt-Ex2-3 belong together
-## <font color='LawnGreen'>Goals of LAB2</font>:
+### <font color='LawnGreen'>Goals of LAB 2</font>:
 + learn how to explore and interpret activations in NNs using 'activation maximization' principles
 + learn how to extract activations via forward_hooks
 + exercise how to usefully interpret and visualize activation behaviour
