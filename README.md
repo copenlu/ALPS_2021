@@ -1,18 +1,18 @@
-# ALPS_2021
+# ALPS_2021 - LAB 2 - January 22 2021
 Repository for the Explainable AI track in the ALPS winter school 2021
 
 Please, keep in mind that changes are possible to the notebooks and/or source code in the few upcoming days.
 
-# Lab 1
+# Lab 2.1
 The first part of the lab is on the topic of explainability.
 
 You can find the corresponding notebook on [Colab](https://colab.research.google.com/drive/1M1-O8FnSARfE8nS35A_s3RQEyCUKdKNi?usp=sharing).
 
 The solutions for the tasks can be found in [this notebook](https://colab.research.google.com/drive/1-aZ9-Kzkb_BVb-8vcvHBAAYy2iBk0khV?usp=sharing).
 
-# Lab 2
+# Lab 2.2
 The second lab focuses explorative interpretability via acivation maximization - i.e. TX-Ray https://arxiv.org/abs/1912.00982. Activation maximization works for supervised and *self/un-supervised* settings alike, but the lab focuses analyzing CNN filters in a simple supervised setting.
-## Lab 2 code
+## Lab 2.2 code
 [CoLAB2](https://colab.research.google.com/drive/1lg6Xj9QM33lekmSkdzjxHIBlGnexBTY3?usp=sharing) <- copy this Colab notebook and add code to it for the exercises.
 There are two types of exercises:
 
