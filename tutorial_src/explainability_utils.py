@@ -55,12 +55,14 @@ class GradientBasedVisualizer:
             batch[0].squeeze().detach().cpu().numpy().tolist())
         input_ = batch[0]
 
-        if not isinstance(self.ablator, LimeBase):
-            input_ = self.interpretable_embedding.indices_to_embeddings(input_)
-
         additional_args = None
         if model_type == 'lstm':
             additional_args = batch[-1]
+        elif model_type == 'transformer':
+            additional_args = input_ != 0
+
+        if not isinstance(self.ablator, LimeBase):
+            input_ = self.interpretable_embedding.indices_to_embeddings(input_)
 
         # predict
         pred = self.softmax(
@@ -72,11 +74,14 @@ class GradientBasedVisualizer:
         # gradients
         if isinstance(self.ablator, LimeBase):
             attributions_ig = self.ablator.attribute(input_,
+                                                     additional_forward_args=(
+                                                     additional_args,),
                                                      n_perturb_samples=100,
                                                      target=target)
         else:
             attributions_ig = self.ablator.attribute(input_,
-                                                     additional_forward_args=additional_args,
+                                                     additional_forward_args=(
+                                                         additional_args,),
                                                      target=target)
 
         self.add_attributions_to_visualizer(attributions_ig,
@@ -93,7 +98,7 @@ class GradientBasedVisualizer:
 
 
 def attribute_predict(collate_fn, model_args, dataset, attribution_method,
-                      model, target):
+                      model, target, embedding_name):
     predicted_logits, attributions, token_ids_all, true_target = [], [], [], []
 
     dl = torch.utils.data.DataLoader(batch_size=model_args.batch_size,
@@ -101,13 +106,14 @@ def attribute_predict(collate_fn, model_args, dataset, attribution_method,
                                      collate_fn=collate_fn)
 
     if not isinstance(attribution_method, LimeBase):
-        interpretable_embedding = configure_interpretable_embedding_layer(model,
-                                                                          'embedding')
+        interpretable_embedding = configure_interpretable_embedding_layer(model,embedding_name)
 
     for batch in tqdm(dl):
         token_ids = batch[0]
         if model_args.model == 'lstm':
             additional_args = (batch[-1],)
+        elif model_args.model == 'transformer':
+            additional_args = (token_ids != 0,)
         else:
             additional_args = None
         if isinstance(attribution_method, LimeBase):
@@ -124,7 +130,7 @@ def attribute_predict(collate_fn, model_args, dataset, attribution_method,
             instance_attribution = summarize_attributions(instance_attribution,
                                                           type='mean').detach().cpu()
 
-        predicted_logits += model(inputs).detach().cpu().numpy().tolist()
+        predicted_logits += model(inputs, additional_args[0] if additional_args else None).detach().cpu().numpy().tolist()
         attributions += instance_attribution
         token_ids_all += token_ids.detach().cpu().numpy().tolist()
         true_target += batch[1].detach().cpu().numpy().tolist()

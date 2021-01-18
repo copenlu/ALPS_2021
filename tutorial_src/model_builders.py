@@ -65,8 +65,6 @@ class LSTM_MODEL(torch.nn.Module):
                         ilen = _i + 1
                         break
                 seq_lenghts.append(ilen)
-        else:
-            seq_lenghts = seq_lenghts[0]
 
         packed_input = pack_padded_sequence(embedded, seq_lenghts,
                                             batch_first=True,
@@ -151,9 +149,9 @@ class BertWrapper(torch.nn.Module):
         super(BertWrapper, self).__init__()
         self.transformer = transformer
 
-    def forward(self, input, additional_args=None):
-        print(self.transformer(input, attention_mask=input != 0)['logits'].size())
-        return self.transformer(input, attention_mask=input != 0)['logits']
+    def forward(self, input, attention_mask=None):
+        return self.transformer(input, attention_mask=attention_mask)[
+            'logits']
 
 
 def get_model(model_args, device, embeddings=None):
