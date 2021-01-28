@@ -21,6 +21,17 @@ For this notebook of the lab, we encourage you to work in groups, so that you co
 + learn how to evaluate explainability techniques with common diagnostic properties [(based on this paper)](https://www.aclweb.org/anthology/2020.emnlp-main.263.pdf)
 + exercise using the diagnostic properties to find which architecture parameters of a model make it harder to explain
 
+If you find this code useful for your research, please consider citing:
+
+```
+@inproceedings{atanasova2020diagnostic,
+title={A Diagnostic Study of Explainability Techniques for Text Classification},
+author={Pepa Atanasova and Jakob Grue Simonsen and Christina Lioma and Isabelle Augenstein},
+booktitle = {Proceedings of EMNLP},
+publisher = {Association for Computational Linguistics},
+year = 2020
+}
+```
 
 # Lab 2.2
 The second lab focuses explorative interpretability via acivation maximization - i.e. TX-Ray https://arxiv.org/abs/1912.00982. Activation maximization works for supervised and *self/un-supervised* settings alike, but the lab focuses analyzing CNN filters in a simple supervised setting.
@@ -39,3 +50,14 @@ There are two types of exercises:
 + analyze neuron/ filter redundancy, specialization, generalization - advanced
 + Overall: explore/ develop ideas towards 'model understanding' -- see https://arxiv.org/abs/1907.10739 for a great introduction of 'decision understanding' vs. 'model understanding'
 	+ this tutorial focuses on explorative 'model understanding' via TX-Ray https://arxiv.org/abs/1912.00982
+
+If you find this code useful for your research, please consider citing:
+
+```
+@inproceedings{Rethmeier19TX-Ray,
+title = {TX-Ray: Quantifying and Explaining Model-Knowledge Transfer in (Un-)Supervised NLP},
+author = {Rethmeier, Nils and Kumar Saxena, Vageesh and Augenstein, Isabelle},
+booktitle = {Proceedings of the Conference on Uncertainty in Artificial Intelligence (UAI)},
+year = 2020
+}
+```
