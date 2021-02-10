@@ -54,7 +54,11 @@ class LSTM_MODEL(torch.nn.Module):
             w.bias.data.fill_(0.01)
 
     def forward(self, input, seq_lenghts=None):
-        embedded = self.embedding(input)
+        if len(input.size()) == 2:
+            input_ids = input
+            input_embeds = self.embedding(input_ids)
+        else:
+            input_embeds = input
 
         if seq_lenghts == None:
             seq_lenghts = []
@@ -66,7 +70,7 @@ class LSTM_MODEL(torch.nn.Module):
                         break
                 seq_lenghts.append(ilen)
 
-        packed_input = pack_padded_sequence(embedded, seq_lenghts,
+        packed_input = pack_padded_sequence(input_embeds, seq_lenghts,
                                             batch_first=True,
                                             enforce_sorted=False)
         lstm_out, self.hidden = self.enc_p(packed_input)
@@ -132,8 +136,13 @@ class CNN_MODEL(torch.nn.Module):
         return pooled_out
 
     def forward(self, input, additional_args=None):
-        input = self.embedding(input)
-        input = input.unsqueeze(1)
+        if len(input.size()) == 2:
+            input_ids = input
+            input_embeds = self.embedding(input_ids)
+        else:
+            input_embeds = input
+
+        input = input_embeds.unsqueeze(1)
         input = self.dropout(input)
 
         conv_out = [self.conv_block(input, self.conv_layers[i]) for i in
@@ -150,7 +159,11 @@ class BertWrapper(torch.nn.Module):
         self.transformer = transformer
 
     def forward(self, input, attention_mask=None):
-        return self.transformer(input, attention_mask=attention_mask)[
+        if len(input.size()) > 2:
+            return self.transformer(inputs_embeds=input, attention_mask=attention_mask)[
+            'logits']
+        else:
+            return self.transformer(input, attention_mask=attention_mask)[
             'logits']
 
 
